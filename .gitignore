@@ -1,0 +1,32 @@
+# Node
+node_modules/
+.next/
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env*.local
+
+# Java / Maven
+backend/target/
+backend/.mvn/
+*.jar
+*.war
+*.class
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/tmp/
+
+# IDE
+.idea/
+.vscode/settings.json
+*.iml

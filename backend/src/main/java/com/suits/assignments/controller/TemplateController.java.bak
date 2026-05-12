@@ -1,0 +1,144 @@
+package com.suits.assignments.controller;
+
+import com.suits.assignments.dto.*;
+import com.suits.assignments.service.TemplateService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
+
+
+@RestController
+@RequestMapping("/api/v1/templates")
+@CrossOrigin(origins = "*")
+@Validated
+@Tag(name = "Templates", description = "Assignment Template Management")
+
+public class TemplateController {
+    
+    private final TemplateService templateService;
+    
+    // ==================== Template Queries ====================
+    
+    @GetMapping
+    @Operation(summary = "List all templates")
+    public ResponseEntity<Page<TemplateDTO>> getAllTemplates(
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        if (category != null) {
+            return ResponseEntity.ok(templateService.getTemplatesByCategory(category, pageable));
+        }
+        return ResponseEntity.ok(templateService.getAllTemplates(pageable));
+    }
+    
+    @GetMapping("/published")
+    @Operation(summary = "List published templates")
+    public ResponseEntity<List<TemplateDTO>> getPublishedTemplates() {
+        return ResponseEntity.ok(templateService.getPublishedTemplates());
+    }
+    
+    @GetMapping("/{id}")
+    @Operation(summary = "Get template by ID")
+    public ResponseEntity<TemplateDTO> getTemplate(@PathVariable UUID id) {
+        return ResponseEntity.ok(templateService.getTemplateById(id));
+    }
+    
+    @GetMapping("/search")
+    @Operation(summary = "Search templates")
+    public ResponseEntity<Page<TemplateDTO>> searchTemplates(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(templateService.searchTemplates(query, pageable));
+    }
+    
+    // ==================== Template CRUD ====================
+    
+    @PostMapping
+    @Operation(summary = "Create new template")
+    public ResponseEntity<TemplateDTO> createTemplate(
+            @Valid @RequestBody CreateTemplateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(templateService.createTemplate(request));
+    }
+    
+    @PutMapping("/{id}")
+    @Operation(summary = "Update template")
+    public ResponseEntity<TemplateDTO> updateTemplate(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateTemplateRequest request) {
+        return ResponseEntity.ok(templateService.updateTemplate(id, request));
+    }
+    
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete template")
+    public ResponseEntity<Void> deleteTemplate(@PathVariable UUID id) {
+        templateService.deleteTemplate(id);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @PostMapping("/{id}/publish")
+    @Operation(summary = "Publish template for use")
+    public ResponseEntity<TemplateDTO> publishTemplate(@PathVariable UUID id) {
+        return ResponseEntity.ok(templateService.publishTemplate(id));
+    }
+    
+    // ==================== Template Tasks ====================
+    
+    @GetMapping("/{id}/tasks")
+    @Operation(summary = "List tasks in template")
+    public ResponseEntity<List<TemplateTaskDTO>> getTemplateTasks(@PathVariable UUID id) {
+        return ResponseEntity.ok(templateService.getTemplateTasks(id));
+    }
+    
+    @PostMapping("/{id}/tasks")
+    @Operation(summary = "Add task to template")
+    public ResponseEntity<TemplateDTO> addTemplateTask(
+            @PathVariable UUID id,
+            @Valid @RequestBody TemplateTaskRequest request) {
+        templateService.addTemplateTask(id, request);
+        return ResponseEntity.ok(templateService.getTemplateById(id));
+    }
+    
+    @DeleteMapping("/{id}/tasks/{taskId}")
+    @Operation(summary = "Remove task from template")
+    public ResponseEntity<Void> removeTemplateTask(
+            @PathVariable UUID id,
+            @PathVariable UUID taskId) {
+        templateService.removeTemplateTask(id, taskId);
+        return ResponseEntity.noContent().build();
+    }
+    
+    // ==================== Template Cloning ====================
+    
+    @PostMapping("/{id}/clone")
+    @Operation(summary = "Clone template with new name")
+    public ResponseEntity<TemplateDTO> cloneTemplate(
+            @PathVariable UUID id,
+            @RequestParam String newName) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(templateService.cloneTemplate(id, newName));
+    }
+    
+    // ==================== Analytics ====================
+    
+    @GetMapping("/{id}/statistics")
+    @Operation(summary = "Get template usage statistics")
+    public ResponseEntity<TemplateStatisticsDTO> getStatistics(@PathVariable UUID id) {
+        return ResponseEntity.ok(templateService.getTemplateStatistics(id));
+    }
+}

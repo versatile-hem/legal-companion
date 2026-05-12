@@ -1,0 +1,231 @@
+package com.suits.assignments.service;
+
+import com.suits.assignments.dto.*;
+import com.suits.assignments.entity.*;
+import com.suits.assignments.repository.*;
+import com.suits.common.exception.ResourceNotFoundException;
+
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+
+@Service
+
+@Transactional
+public class TemplateService {
+    
+    private final AssignmentTemplateRepository templateRepository;
+    private final AssignmentService assignmentService;
+    
+    // ==================== Query Operations ====================
+    
+    @Transactional(readOnly = true)
+    public List<TemplateDTO> getAllTemplates() {
+        List<AssignmentTemplate> templates = templateRepository.findAll();
+        return templates.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public List<TemplateDTO> getPublishedTemplates() {
+        List<AssignmentTemplate> templates = templateRepository.findByIsPublishedTrue();
+        return templates.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public TemplateDTO getTemplateById(UUID id) {
+        AssignmentTemplate template = templateRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("AssignmentTemplate", id));
+        return toDTO(template);
+    }
+    
+    @Transactional(readOnly = true)
+    public List<TemplateDTO> getTemplatesByCategory(String category) {
+        List<AssignmentTemplate> templates = templateRepository.findByCategory(category);
+        return templates.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public Page<TemplateDTO> searchTemplates(String query, Pageable pageable) {
+        List<AssignmentTemplate> templates = templateRepository.searchPublishedTemplates(query);
+        
+        int start = pageable.getPageNumber() * pageable.getPageSize();
+        int end = Math.min(start + pageable.getPageSize(), templates.size());
+        
+        return new org.springframework.data.domain.PageImpl<>(
+            templates.subList(start, end).stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList()),
+            pageable,
+            templates.size()
+        );
+    }
+    
+    // ==================== Create/Update Operations ====================
+    
+    public TemplateDTO createTemplate(CreateTemplateRequest request) {
+        AssignmentTemplate template = new AssignmentTemplate();
+        template.setName(request.getName());
+        template.setDescription(request.getDescription());
+        template.setCategory(request.getCategory());
+        template.setEstimatedHours(request.getEstimatedHours());
+        template.setSla_days(request.getSla_days());
+        template.setVersion("1.0");
+        template.setIs_published(false);
+        template.setCreatedAt(LocalDateTime.now());
+        template.setUpdatedAt(LocalDateTime.now());
+        
+        AssignmentTemplate saved = templateRepository.save(template);
+        // logging disabled
+        
+        return toDTO(saved);
+    }
+    
+    public TemplateDTO updateTemplate(UUID id, UpdateTemplateRequest request) {
+        AssignmentTemplate template = templateRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("AssignmentTemplate", id));
+        
+        if (request.getName() != null) template.setName(request.getName());
+        if (request.getDescription() != null) template.setDescription(request.getDescription());
+        if (request.getCategory() != null) template.setCategory(request.getCategory());
+        if (request.getEstimatedHours() != null) template.setEstimatedHours(request.getEstimatedHours());
+        if (request.getSla_days() != null) template.setSla_days(request.getSla_days());
+        
+        template.setUpdatedAt(LocalDateTime.now());
+        AssignmentTemplate updated = templateRepository.save(template);
+        
+        return toDTO(updated);
+    }
+    
+    public void deleteTemplate(UUID id) {
+        AssignmentTemplate template = templateRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("AssignmentTemplate", id));
+        
+        templateRepository.delete(template);
+        // logging disabled
+    }
+    
+    public TemplateDTO publishTemplate(UUID id) {
+        AssignmentTemplate template = templateRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("AssignmentTemplate", id));
+        
+        template.setIs_published(true);
+        AssignmentTemplate updated = templateRepository.save(template);
+        
+        // logging disabled
+        return toDTO(updated);
+    }
+    
+    // ==================== Template Tasks ====================
+    
+    @Transactional(readOnly = true)
+    public List<TemplateTaskDTO> getTemplateTasks(UUID templateId) {
+        List<TemplateTask> tasks = templateRepository.getTemplateTasks(templateId);
+        return tasks.stream().map(this::toTemplateTaskDTO).collect(Collectors.toList());
+    }
+    
+    public TemplateTaskDTO addTemplateTask(UUID templateId, CreateTemplateTaskRequest request) {
+        // Implementation would create template task
+        // logging disabled
+        return new TemplateTaskDTO(); // Stub
+    }
+    
+    public void removeTemplateTask(UUID taskTemplateId) {
+        // logging disabled
+    }
+    
+    // ==================== Cloning ====================
+    
+    public AssignmentDTO cloneTemplate(UUID templateId, CloneTemplateRequest request) {
+        return assignmentService.cloneFromTemplate(templateId, 
+            CreateFromTemplateRequest.builder()
+                .title(request.getTitle())
+                .clientId(request.getClientId())
+                .ownerId(request.getOwnerId())
+                .dueDate(request.getDueDate())
+                .priority(request.getPriority())
+                .build()
+        );
+    }
+    
+    public UUID cloneTemplate(UUID sourceTemplateId, String newName, String newDescription) {
+        AssignmentTemplate source = templateRepository.findById(sourceTemplateId)
+            .orElseThrow(() -> new ResourceNotFoundException("AssignmentTemplate", sourceTemplateId));
+        
+        AssignmentTemplate cloned = new AssignmentTemplate();
+        cloned.setName(newName);
+        cloned.setDescription(newDescription != null ? newDescription : source.getDescription());
+        cloned.setCategory(source.getCategory());
+        cloned.setEstimatedHours(source.getEstimatedHours());
+        cloned.setSla_days(source.getSla_days());
+        cloned.setVersion(source.getVersion());
+        cloned.setIs_published(false);
+        cloned.setCreatedAt(LocalDateTime.now());
+        cloned.setUpdatedAt(LocalDateTime.now());
+        
+        AssignmentTemplate saved = templateRepository.save(cloned);
+        // logging disabled
+        
+        return saved.getId();
+    }
+    
+    // ==================== Statistics ====================
+    
+    @Transactional(readOnly = true)
+    public List<TemplateDTO> getMasterTemplates() {
+        return getAllTemplates().stream()
+            .filter(TemplateDTO::isPublished)
+            .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public TemplateStatisticsDTO getTemplateStatistics(UUID templateId) {
+        AssignmentTemplate template = templateRepository.findById(templateId)
+            .orElseThrow(() -> new ResourceNotFoundException("AssignmentTemplate", templateId));
+        
+        // Get usage count
+        long usageCount = 0; // Would query AssignmentTemplateMappings table
+        
+        return TemplateStatisticsDTO.builder()
+            .templateId(templateId)
+            .name(template.getName())
+            .usageCount(usageCount)
+            .estimatedHours(template.getEstimatedHours())
+            .slaStandard(template.getSla_days())
+            .build();
+    }
+    
+    // ==================== Helper Methods ====================
+    
+    private TemplateDTO toDTO(AssignmentTemplate template) {
+        return TemplateDTO.builder()
+            .id(template.getId())
+            .name(template.getName())
+            .description(template.getDescription())
+            .category(template.getCategory())
+            .estimatedHours(template.getEstimatedHours())
+            .sla_days(template.getSla_days())
+            .version(template.getVersion())
+            .isPublished(template.isIs_published())
+            .createdAt(template.getCreatedAt())
+            .build();
+    }
+    
+    private TemplateTaskDTO toTemplateTaskDTO(TemplateTask task) {
+        return TemplateTaskDTO.builder()
+            .id(task.getId())
+            .templateId(task.getTemplateId())
+            .taskName(task.getTaskName())
+            .taskDescription(task.getTaskDescription())
+            .estimatedHours(task.getEstimatedHours())
+            .isMandatory(task.isIs_mandatory())
+            .build();
+    }
+}

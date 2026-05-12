@@ -1,0 +1,57 @@
+# Maven
+target/
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.c9/
+*.launch
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Development
+*.swp
+*.swo
+*~
+.vagrant/
+
+# Build
+.gradle/
+build/
+out/
+dist/
+
+# IntelliJ
+*.iml
+.idea/
+
+# Debug
+debug.log
+*.stackdump

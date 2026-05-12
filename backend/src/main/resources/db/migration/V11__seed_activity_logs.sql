@@ -1,0 +1,2 @@
+-- Flyway Migration V11: Seed activity logs (DISABLED)  
+-- NOTE: Data inserts temporarily disabled for schema debugging

@@ -1,0 +1,2 @@
+-- Flyway Migration V9: Seed Data (DISABLED for schema debugging)
+-- NOTE: Seed data temporarily disabled

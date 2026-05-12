@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: suits-in-api
+  profiles:
+    active: dev
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+    open-in-view: false
+    show-sql: false
+
+  mvc:
+    throw-exception-if-no-handler-found: true
+
+  web:
+    resources:
+      add-mappings: false
+
+server:
+  servlet:
+    context-path: /api/v1
+  error:
+    include-message: always
+    include-binding-errors: always
+
+logging:
+  level:
+    root: INFO
+    com.suits: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:your-super-secret-jwt-key-change-in-production-must-be-64-chars-minimum-2024}
+    expiration: 3600000
+    refresh-expiration: 2592000000
+
+openai:
+  api-key: ${OPENAI_API_KEY:sk-placeholder}
+  model: gpt-4-turbo-preview
+  org-id: ${OPENAI_ORG_ID:}
+
+google:
+  drive:
+    credentials-json: ${GOOGLE_DRIVE_CREDS_JSON:}
+    folder-id: ${GOOGLE_DRIVE_FOLDER_ID:}

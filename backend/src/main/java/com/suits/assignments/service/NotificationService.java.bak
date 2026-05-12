@@ -1,0 +1,93 @@
+package com.suits.assignments.service;
+
+import com.suits.assignments.dto.NotificationDTO;
+
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+
+
+@Service
+
+@Transactional
+public class NotificationService {
+    
+    // In-memory notification store (replace with DB later)
+    private final Map<UUID, List<NotificationDTO>> notificationStore = new HashMap<>();
+    
+    // ==================== Notifications ====================
+    
+    @Transactional(readOnly = true)
+    public Page<NotificationDTO> getUserNotifications(UUID userId, Pageable pageable) {
+        List<NotificationDTO> userNotifications = notificationStore.getOrDefault(userId, new ArrayList<>());
+        int start = pageable.getPageNumber() * pageable.getPageSize();
+        int end = Math.min(start + pageable.getPageSize(), userNotifications.size());
+        
+        return new PageImpl<>(
+            userNotifications.subList(start, end),
+            pageable,
+            userNotifications.size()
+        );
+    }
+    
+    @Transactional(readOnly = true)
+    public long getUnreadCount(UUID userId) {
+        List<NotificationDTO> notifications = notificationStore.getOrDefault(userId, new ArrayList<>());
+        return notifications.stream().filter(n -> !n.isRead()).count();
+    }
+    
+    public void markAsRead(UUID notificationId) {
+        // Find and mark notification as read
+        for (List<NotificationDTO> notifications : notificationStore.values()) {
+            notifications.stream()
+                .filter(n -> n.getId().equals(notificationId))
+                .forEach(n -> n.setRead(true));
+        }
+    }
+    
+    public void markAllAsRead(UUID userId) {
+        List<NotificationDTO> notifications = notificationStore.getOrDefault(userId, new ArrayList<>());
+        notifications.forEach(n -> n.setRead(true));
+    }
+    
+    // ==================== Event Notifications ====================
+    
+    public void notifyAssignmentCreated(UUID assignmentId) {
+        // logging disabled
+        // Implementation would send to all team members
+    }
+    
+    public void notifyTaskUpdated(UUID taskId) {
+        // logging disabled
+    }
+    
+    public void notifyCommentAdded(UUID commentId) {
+        // logging disabled
+    }
+    
+    public void notifyAssignmentCompleted(UUID assignmentId) {
+        // logging disabled
+    }
+    
+    public void notifySLAWarning(UUID assignmentId) {
+        log.warn("SLA WARNING for assignment {}", assignmentId);
+    }
+    
+    public void notifySLABreach(UUID assignmentId) {
+        log.error("SLA BREACH for assignment {}", assignmentId);
+    }
+    
+    public void notifyBlockedTask(UUID taskId) {
+        log.warn("Task {} is blocked", taskId);
+    }
+    
+    public void notifyTaskCompleted(UUID taskId) {
+        // logging disabled
+    }
+}

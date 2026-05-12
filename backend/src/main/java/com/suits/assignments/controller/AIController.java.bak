@@ -1,0 +1,88 @@
+package com.suits.assignments.controller;
+
+import com.suits.assignments.dto.*;
+import com.suits.assignments.service.AIService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
+
+
+@RestController
+@RequestMapping("/api/v1/ai")
+@CrossOrigin(origins = "*")
+@Validated
+@Tag(name = "AI", description = "AI-Powered Intelligence and Suggestions")
+
+public class AIController {
+    
+    private final AIService aiService;
+    
+    // ==================== Task Suggestions ====================
+    
+    @GetMapping("/assignments/{assignmentId}/next-tasks")
+    @Operation(summary = "Get AI-suggested next tasks for an assignment")
+    public ResponseEntity<List<TaskSuggestionDTO>> suggestNextTasks(
+            @PathVariable UUID assignmentId) {
+        return ResponseEntity.ok(aiService.suggestNextTasks(assignmentId));
+    }
+    
+    // ==================== Risk Analysis ====================
+    
+    @GetMapping("/assignments/{assignmentId}/risk")
+    @Operation(summary = "Analyze risk for an assignment")
+    public ResponseEntity<RiskAnalysisDTO> analyzeRisk(
+            @PathVariable UUID assignmentId) {
+        return ResponseEntity.ok(aiService.analyzeRisk(assignmentId));
+    }
+    
+    @GetMapping("/assignments")
+    @Operation(summary = "Get all risk analyses in bulk")
+    public ResponseEntity<List<RiskAnalysisDTO>> getAllRiskAnalyses() {
+        return ResponseEntity.ok(aiService.getAllRiskAnalyses());
+    }
+    
+    // ==================== Timeline Estimation ====================
+    
+    @GetMapping("/assignments/{assignmentId}/timeline")
+    @Operation(summary = "Estimate assignment completion timeline")
+    public ResponseEntity<TimelineEstimateDTO> estimateTimeline(
+            @PathVariable UUID assignmentId) {
+        return ResponseEntity.ok(aiService.estimateTimeline(assignmentId));
+    }
+    
+    // ==================== Optimizations ====================
+    
+    @GetMapping("/assignments/{assignmentId}/optimize")
+    @Operation(summary = "Get optimization suggestions for an assignment")
+    public ResponseEntity<OptimizationSuggestionsDTO> suggestOptimizations(
+            @PathVariable UUID assignmentId) {
+        return ResponseEntity.ok(aiService.suggestOptimizations(assignmentId));
+    }
+    
+    // ==================== Insights ====================
+    
+    @GetMapping("/insights")
+    @Operation(summary = "Get AI-generated insights for all assignments")
+    public ResponseEntity<List<InsightDTO>> getInsights() {
+        return ResponseEntity.ok(aiService.getInsights());
+    }
+    
+    @PostMapping("/insights/generate")
+    @Operation(summary = "Trigger generation of new insights")
+    public ResponseEntity<InsightsGeneratedDTO> generateInsights() {
+        aiService.generateInsights();
+        return ResponseEntity.ok(InsightsGeneratedDTO.builder()
+                .status("success")
+                .message("Insights generated successfully")
+                .timestamp(java.time.LocalDateTime.now())
+                .build());
+    }
+}

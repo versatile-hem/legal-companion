@@ -1,0 +1,339 @@
+package com.suits.assignments.service;
+
+import com.suits.assignments.dto.*;
+import com.suits.assignments.entity.*;
+import com.suits.assignments.repository.AssignmentRepository;
+import com.suits.assignments.repository.TaskRepository;
+import com.suits.common.exception.ResourceNotFoundException;
+
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
+
+
+@Service
+
+@Transactional
+public class AIService {
+    
+    private final AssignmentRepository assignmentRepository;
+    private final TaskRepository taskRepository;
+    
+    // ==================== Task Suggestions ====================
+    
+    public List<TaskSuggestionDTO> suggestNextTasks(UUID assignmentId) {
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Assignment", assignmentId));
+        
+        List<TaskSuggestionDTO> suggestions = new ArrayList<>();
+        
+        // Get incomplete tasks
+        List<AssignmentTask> incompleteTasks = taskRepository.findByAssignmentIdAndStatusList(
+            assignmentId, TaskStatus.PENDING
+        );
+        
+        // Suggest highest priority, earliest due date tasks first
+        incompleteTasks.stream()
+            .sorted((t1, t2) -> {
+                int priorityCompare = t2.getPriority().compareTo(t1.getPriority());
+                if (priorityCompare != 0) return priorityCompare;
+                return t1.getDueDate().compareTo(t2.getDueDate());
+            })
+            .limit(3)
+            .forEach(task -> suggestions.add(
+                TaskSuggestionDTO.builder()
+                    .taskId(task.getId().toString())
+                    .taskTitle(task.getTitle())
+                    .reasoning(buildTaskReasoning(task, assignment))
+                    .priority(task.getPriority().ordinal() + 1)
+                    .estimatedEffort(getEstimatedEffort(task))
+                    .build()
+            ));
+        
+        return suggestions;
+    }
+    
+    // ==================== Risk Analysis ====================
+    
+    public RiskAnalysisDTO analyzeRisk(UUID assignmentId) {
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Assignment", assignmentId));
+        
+        int riskScore = calculateRiskScore(assignment);
+        String riskLevel = getRiskLevel(riskScore);
+        List<String> riskFactors = identifyRiskFactors(assignment);
+        List<String> recommendations = generateRecommendations(riskScore, riskFactors);
+        
+        return RiskAnalysisDTO.builder()
+            .assignmentId(assignmentId.toString())
+            .riskScore(riskScore)
+            .riskLevel(riskLevel)
+            .primaryRisk(riskFactors.isEmpty() ? "None" : riskFactors.get(0))
+            .recommendation(recommendations.isEmpty() ? "Continue current progress" : recommendations.get(0))
+            .build();
+    }
+    
+    public List<RiskAnalysisDTO> getAllRiskAnalyses() {
+        List<Assignment> assignments = assignmentRepository.findAll();
+        return assignments.stream()
+            .map(this::analyzeRisk)
+            .collect(Collectors.toList());
+    }
+    
+    // ==================== Timeline Estimation ====================
+    
+    public TimelineEstimateDTO estimateTimeline(UUID assignmentId) {
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Assignment", assignmentId));
+        
+        // Get remaining tasks
+        List<AssignmentTask> remainingTasks = taskRepository.findByAssignmentIdAndStatusList(
+            assignmentId, TaskStatus.PENDING
+        );
+        
+        // Get in-progress tasks for momentum
+        List<AssignmentTask> inProgressTasks = taskRepository.findByAssignmentIdAndStatusList(
+            assignmentId, TaskStatus.IN_PROGRESS
+        );
+        
+        // Calculate total estimated hours
+        double totalHours = remainingTasks.stream()
+            .mapToDouble(t -> t.getEstimatedHours() != null ? t.getEstimatedHours() : 4)
+            .sum();
+        
+        double inProgressHours = inProgressTasks.stream()
+            .mapToDouble(t -> t.getEstimatedHours() != null ? t.getEstimatedHours() : 4)
+            .sum();
+        
+        // Estimate 6 hours productive work per day
+        // Add momentum: in-progress tasks might be completed faster
+        int estimatedDays = (int) Math.ceil((totalHours + inProgressHours) / 7.0);
+        LocalDateTime estimatedCompletion = LocalDateTime.now().plusDays(estimatedDays);
+        
+        long totalTasks = remainingTasks.size() + inProgressTasks.size();
+        int completionPercentage = totalTasks == 0 ? 100 : 
+            (int) (100 * inProgressTasks.size() / totalTasks);
+        
+        String confidence = "HIGH";
+        if (estimatedCompletion.toLocalDate().isAfter(assignment.getDueDate().toLocalDate())) {
+            confidence = "LOW";
+        }
+        
+        return TimelineEstimateDTO.builder()
+            .assignmentId(assignmentId.toString())
+            .estimatedDays(estimatedDays)
+            .estimatedCompletion(estimatedCompletion)
+            .completionPercentage(completionPercentage)
+            .daysRemaining((int) ChronoUnit.DAYS.between(LocalDate.now(), 
+                assignment.getDueDate().toLocalDate()))
+            .confidence(confidence)
+            .reasoning("Based on " + totalTasks + " remaining tasks")
+            .build();
+    }
+    
+    // ==================== Optimization Suggestions ====================
+    
+    public OptimizationSuggestionsDTO suggestOptimizations(UUID assignmentId) {
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Assignment", assignmentId));
+        
+        List<String> parallelizable = new ArrayList<>();
+        List<String> resources = new ArrayList<>();
+        List<String> urgent = new ArrayList<>();
+        
+        // Get all tasks
+        List<AssignmentTask> allTasks = taskRepository.findByAssignmentId(assignmentId);
+        
+        // Suggestion 1: Parallel task execution
+        long criticalPending = allTasks.stream()
+            .filter(t -> t.getStatus() == TaskStatus.PENDING)
+            .filter(t -> t.getPriority() == PriorityLevel.CRITICAL)
+            .count();
+        
+        if (criticalPending > 2) {
+            parallelizable.add("Execute " + criticalPending + " critical pending tasks in parallel");
+        }
+        
+        // Suggestion 2: Resource allocation
+        long unassignedTasks = allTasks.stream()
+            .filter(t -> t.getAssignee() == null)
+            .count();
+        
+        if (unassignedTasks > 0) {
+            resources.add("Assign " + unassignedTasks + " pending tasks to team members");
+        }
+        
+        // Suggestion 3: Urgent actions
+        long daysRemaining = ChronoUnit.DAYS.between(LocalDate.now(), assignment.getDueDate().toLocalDate());
+        if (daysRemaining < 0) {
+            urgent.add("Address SLA breach: " + Math.abs(daysRemaining) + " days overdue");
+        } else if (daysRemaining < 3) {
+            urgent.add("Accelerate execution: only " + daysRemaining + " days to deadline");
+        }
+        
+        return OptimizationSuggestionsDTO.builder()
+            .assignmentId(assignmentId.toString())
+            .parallelizableSteps(parallelizable.isEmpty() ? 
+                List.of("Current task sequence is optimal") : parallelizable)
+            .resourceSuggestions(resources.isEmpty() ? 
+                List.of("All tasks are properly assigned") : resources)
+            .urgentActions(urgent.isEmpty() ? 
+                List.of("No urgent actions required") : urgent)
+            .potentialTimeSaving("1-3 days")
+            .overallRecommendation("Continue current pace with focus on resource allocation")
+            .build();
+    }
+    
+    // ==================== Insights ====================
+    
+    @Transactional
+    public void generateInsights() {
+        // logging disabled
+        List<Assignment> assignments = assignmentRepository.findAll();
+        // Would generate and store insights in AI_INSIGHTS table
+    }
+    
+    @Transactional(readOnly = true)
+    public List<InsightDTO> getInsights() {
+        // logging disabled
+        // Would query AI_INSIGHTS table
+        // For now return empty list - would be populated from database
+        return new ArrayList<>();
+    }
+    
+    // ==================== External AI (Extensible for Future) ====================
+    
+    public void callExternalAI(String prompt) {
+        // logging disabled
+        // Placeholder for OpenAI/Gemini integration
+    }
+    
+    // ==================== Helper Methods ====================
+    
+    private int calculateRiskScore(Assignment assignment) {
+        int score = 0;
+        
+        // Status-based risk
+        switch (assignment.getStatus()) {
+            case BLOCKED -> score += 40;
+            case WAITING_FOR_CLIENT -> score += 20;
+            case IN_PROGRESS -> score += 10;
+            case PENDING -> score += 5;
+            default -> score += 0;
+        }
+        
+        // Priority-based risk
+        switch (assignment.getPriority()) {
+            case CRITICAL -> score += 30;
+            case HIGH -> score += 20;
+            case MEDIUM -> score += 10;
+            default -> score += 0;
+        }
+        
+        // Due date-based risk
+        long daysRemaining = ChronoUnit.DAYS.between(LocalDate.now(), assignment.getDueDate());
+        if (daysRemaining < 0) score += 40;
+        else if (daysRemaining < 2) score += 25;
+        else if (daysRemaining < 5) score += 15;
+        
+        return Math.min(score, 100);
+    }
+    
+    private String getRiskLevel(int score) {
+        if (score >= 80) return "CRITICAL";
+        if (score >= 60) return "HIGH";
+        if (score >= 40) return "MEDIUM";
+        return "LOW";
+    }
+    
+    private List<String> identifyRiskFactors(Assignment assignment) {
+        List<String> factors = new ArrayList<>();
+        
+        if (assignment.getStatus() == AssignmentStatus.BLOCKED) {
+            factors.add("Assignment is blocked");
+        }
+        
+        long daysRemaining = ChronoUnit.DAYS.between(LocalDate.now(), assignment.getDueDate());
+        if (daysRemaining < 0) {
+            factors.add("Overdue by " + Math.abs(daysRemaining) + " days");
+        } else if (daysRemaining < 3) {
+            factors.add("Approaching deadline in " + daysRemaining + " days");
+        }
+        
+        if (assignment.getPriority().ordinal() >= PriorityLevel.CRITICAL.ordinal()) {
+            factors.add("Critical priority");
+        }
+        
+        return factors;
+    }
+    
+    private List<String> generateRecommendations(int riskScore, List<String> riskFactors) {
+        List<String> recommendations = new ArrayList<>();
+        
+        if (riskScore >= 80) {
+            recommendations.add("Escalate to team lead immediately");
+            recommendations.add("Review and remove blockers");
+        }
+        
+        if (riskScore >= 60) {
+            recommendations.add("Allocate additional resources");
+            recommendations.add("Update stakeholders on status");
+        }
+        
+        if (riskFactors.contains("Assignment is blocked")) {
+            recommendations.add("Investigate and resolve blocking issues");
+        }
+        
+        if (recommendations.isEmpty()) {
+            recommendations.add("Continue current progress");
+        }
+        
+        return recommendations;
+    }
+    
+    private List<String> generateTimelineRecommendations(String status, int estimatedDays) {
+        List<String> recommendations = new ArrayList<>();
+        
+        if (status.equals("URGENT")) {
+            recommendations.add("Accelerate task completion");
+            recommendations.add("Reduce scope if necessary");
+        } else if (status.equals("AT_RISK")) {
+            recommendations.add("Allocate additional team members");
+            recommendations.add("Prioritize blocking tasks");
+        } else {
+            recommendations.add("Maintain current pace");
+        }
+        
+        return recommendations;
+    }
+    
+    private String buildTaskReasoning(AssignmentTask task, Assignment assignment) {
+        StringBuilder reasoning = new StringBuilder();
+        
+        reasoning.append("Priority: ").append(task.getPriority().toString()).append(". ");
+        
+        long daysUntilDue = ChronoUnit.DAYS.between(LocalDate.now(), task.getDueDate().toLocalDate());
+        if (daysUntilDue <= 1) {
+            reasoning.append("Due soon. ");
+        }
+        
+        reasoning.append("Estimated: ").append(task.getEstimatedHours() != null ? 
+            task.getEstimatedHours() : 4).append(" hours.");
+        
+        return reasoning.toString();
+    }
+    
+    private String getEstimatedEffort(AssignmentTask task) {
+        Integer hours = task.getEstimatedHours();
+        if (hours == null) hours = 4;
+        
+        if (hours <= 2) return "QUICK";
+        if (hours <= 8) return "STANDARD";
+        return "EXTENDED";
+    }
+}

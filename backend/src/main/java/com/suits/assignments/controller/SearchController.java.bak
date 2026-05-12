@@ -1,0 +1,89 @@
+package com.suits.assignments.controller;
+
+import com.suits.assignments.dto.*;
+import com.suits.assignments.service.SearchService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
+import java.time.LocalDateTime;
+
+
+@RestController
+@RequestMapping("/api/v1/search")
+@CrossOrigin(origins = "*")
+@Validated
+@Tag(name = "Search", description = "Advanced Search and Filtering")
+
+public class SearchController {
+    
+    private final SearchService searchService;
+    
+    // ==================== Full-Text Search ====================
+    
+    @GetMapping
+    @Operation(summary = "Full-text search across assignments")
+    public ResponseEntity<Page<AssignmentDTO>> search(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(searchService.search(query, pageable));
+    }
+    
+    // ==================== Advanced Filtering ====================
+    
+    @PostMapping("/advanced")
+    @Operation(summary = "Advanced search with multiple filters")
+    public ResponseEntity<Page<AssignmentDTO>> advancedSearch(
+            @Valid @RequestBody SearchFilterRequest request,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(searchService.searchWithFilters(request, pageable));
+    }
+    
+    // ==================== Specialized Searches ====================
+    
+    @GetMapping("/by-date-range")
+    @Operation(summary = "Search by date range")
+    public ResponseEntity<Page<AssignmentDTO>> searchByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(searchService.searchByDateRange(startDate, endDate, pageable));
+    }
+    
+    @GetMapping("/by-sla-status")
+    @Operation(summary = "Search by SLA status")
+    public ResponseEntity<Page<AssignmentDTO>> searchBySLAStatus(
+            @RequestParam String slaStatus,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(searchService.searchBySLAStatus(slaStatus, pageable));
+    }
+    
+    // ==================== Search Management ====================
+    
+    @PostMapping("/reindex")
+    @Operation(summary = "Rebuild full-text search indexes")
+    public ResponseEntity<SearchReindexResponse> reindexAll() {
+        searchService.reindexAllAssignments();
+        return ResponseEntity.ok(SearchReindexResponse.builder()
+                .status("success")
+                .message("Full-text search index rebuilt successfully")
+                .build());
+    }
+}

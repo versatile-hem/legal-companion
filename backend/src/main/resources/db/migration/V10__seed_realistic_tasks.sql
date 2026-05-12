@@ -1,0 +1,2 @@
+-- Flyway Migration V10: Seed tasks (DISABLED)
+-- NOTE: Data inserts temporarily disabled for schema debugging

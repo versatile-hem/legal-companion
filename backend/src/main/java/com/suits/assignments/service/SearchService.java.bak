@@ -1,0 +1,89 @@
+package com.suits.assignments.service;
+
+import com.suits.assignments.dto.AssignmentDTO;
+import com.suits.assignments.dto.SearchFilterRequest;
+import com.suits.assignments.entity.*;
+import com.suits.assignments.repository.AssignmentRepository;
+
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.*;
+import java.util.stream.Collectors;
+
+
+@Service
+
+@Transactional(readOnly = true)
+public class SearchService {
+    
+    private final AssignmentRepository assignmentRepository;
+    private final AssignmentService assignmentService;
+    
+    // ==================== Full-text Search ====================
+    
+    public List<AssignmentDTO> search(String query) {
+        // logging disabled
+        
+        // Use PostgreSQL full-text search
+        List<Assignment> results = assignmentRepository.fullTextSearch(query, 100, 0);
+        
+        return results.stream()
+            .map(a -> assignmentService.getAssignmentById(a.getId()))
+            .collect(Collectors.toList());
+    }
+    
+    public Page<AssignmentDTO> searchWithFilters(SearchFilterRequest request, Pageable pageable) {
+        // logging disabled
+        
+        // For now, delegate to assignment service
+        return assignmentService.getAllAssignments(
+            null, // Could build an AssignmentFilter from request
+            pageable
+        );
+    }
+    
+    // ==================== Advanced Search ====================
+    
+    public List<AssignmentDTO> searchByFieldValue(String field, String value) {
+        // Basic implementation - can be expanded
+        // logging disabled
+        return new ArrayList<>();
+    }
+    
+    public List<AssignmentDTO> searchByDateRange(LocalDate startDate, LocalDate endDate) {
+        // logging disabled
+        
+        List<Assignment> results = assignmentRepository.findByDueDateBetween(startDate, endDate, null)
+            .getContent();
+        
+        return results.stream()
+            .map(a -> assignmentService.getAssignmentById(a.getId()))
+            .collect(Collectors.toList());
+    }
+    
+    public List<AssignmentDTO> searchBySLAStatus(SLAStatus status) {
+        // logging disabled
+        // Implementation would query SLATracking table
+        return new ArrayList<>();
+    }
+    
+    // ==================== Index Management ====================
+    
+    @Transactional
+    public void reindexAssignment(UUID assignmentId) {
+        // logging disabled
+        // Trigger PostgreSQL full-text search index update
+    }
+    
+    @Transactional
+    public void reindexAllAssignments() {
+        // logging disabled
+        // Batch reindex all assignments
+    }
+}
