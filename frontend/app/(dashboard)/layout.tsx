@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import Sidebar from '@/components/dashboard/sidebar';
-import AIChatPanel from '@/components/dashboard/ai-chat-panel';
 
 export default function DashboardLayout({
   children,
@@ -12,53 +11,37 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, hydrate } = useAuthStore();
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    // Check if user is authenticated
-    if (!isAuthenticated) {
+    hydrate();
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (hydrated && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router]);
 
-  if (!isAuthenticated) {
+  // Show blank while hydrating to avoid flash
+  if (!hydrated || !isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading...</p>
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-500">Loading…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar Navigation */}
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="border-b border-border bg-card p-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Welcome, {user?.firstName || 'User'}</h2>
-          <button
-            onClick={() => {
-              useAuthStore.getState().logout();
-              router.push('/login');
-            }}
-            className="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:opacity-90"
-          >
-            Logout
-          </button>
-        </header>
-
-        {/* Page Content with Chat */}
-        <div className="flex-1 flex overflow-hidden">
-          <main className="flex-1 overflow-auto p-6">
-            {children}
-          </main>
-          
-          {/* AI Chat Panel */}
-          <AIChatPanel />
-        </div>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {children}
       </div>
     </div>
   );

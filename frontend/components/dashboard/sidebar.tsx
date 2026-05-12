@@ -57,14 +57,11 @@ export default function Sidebar() {
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </motion.button>
 
-      {/* Sidebar */}
-      <motion.div
-        initial={{ x: -300 }}
-        animate={{ x: 0 }}
-        transition={{ duration: 0.3 }}
+      {/* Sidebar — always visible on desktop, slide-in on mobile */}
+      <div
         className={`${
-          isOpen ? 'fixed' : 'hidden'
-        } lg:relative lg:flex w-64 h-screen bg-white border-r border-gray-200 flex-col overflow-hidden z-40`}
+          isOpen ? 'fixed inset-y-0 left-0' : 'hidden'
+        } lg:relative lg:flex w-64 h-screen bg-white border-r border-slate-200 flex-col overflow-hidden z-40 shrink-0`}
       >
         {/* Logo Section */}
         <div className="p-6 border-b border-gray-200">
@@ -146,7 +143,7 @@ export default function Sidebar() {
             </motion.div>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Mobile Overlay */}
       {isOpen && (
