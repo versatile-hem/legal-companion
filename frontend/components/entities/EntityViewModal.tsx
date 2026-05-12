@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   X, Building2, MapPin, Hash, FileText, Users, ClipboardList, Cpu, AlertTriangle,
+  Download, Mail, Loader2,
 } from 'lucide-react';
 import { useEntityStore } from '@/store/entityStore';
 import {
@@ -28,10 +29,65 @@ function Field({ label, value, children }: { label: string; value?: string | nul
 
 export default function EntityViewModal() {
   const { viewEntity, closeAll } = useEntityStore();
+  const printRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [showMailInput, setShowMailInput] = useState(false);
+  const [mailTo, setMailTo] = useState('');
+
   if (!viewEntity) return null;
 
   const e = viewEntity;
   const compliance = COMPLIANCE_STATUS_CONFIG[e.complianceStatus as keyof typeof COMPLIANCE_STATUS_CONFIG];
+
+  async function generatePdf() {
+    const { default: jsPDF } = await import('jspdf');
+    const { default: html2canvas } = await import('html2canvas');
+    const el = printRef.current!;
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    return pdf;
+  }
+
+  async function handleExportPdf() {
+    setIsExporting(true);
+    try {
+      const pdf = await generatePdf();
+      pdf.save(`${e.name.replace(/\s+/g, '_')}_Entity_Report.pdf`);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleMailPdf() {
+    if (!mailTo.trim()) { setShowMailInput(true); return; }
+    setIsEmailing(true);
+    try {
+      const pdf = await generatePdf();
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      // Download the PDF so the user can attach it manually
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${e.name.replace(/\s+/g, '_')}_Entity_Report.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      // Open mail client with pre-filled subject and body
+      const subject = encodeURIComponent(`Entity Compliance Report – ${e.name}`);
+      const body = encodeURIComponent(
+        `Hi,\n\nPlease find the attached compliance report for ${e.name} (CIN: ${e.cin ?? 'N/A'}).\n\nRegards`
+      );
+      window.location.href = `mailto:${mailTo}?subject=${subject}&body=${body}`;
+      setShowMailInput(false);
+      setMailTo('');
+    } finally {
+      setIsEmailing(false);
+    }
+  }
   const status = ENTITY_STATUS_CONFIG[e.status as keyof typeof ENTITY_STATUS_CONFIG];
 
   return (
@@ -66,7 +122,7 @@ export default function EntityViewModal() {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div ref={printRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
 
           {/* Basic Info */}
           <Section title="Basic Information" icon={FileText}>
@@ -173,16 +229,60 @@ export default function EntityViewModal() {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 flex justify-between items-center bg-slate-50/50">
-          <span className="text-xs text-slate-400">
-            Last updated: {fmtDate(e.updatedAt)}
-          </span>
-          <button
-            onClick={closeAll}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition"
-          >
-            Close
-          </button>
+        {showMailInput && (
+          <div className="px-6 py-3 border-t border-slate-200 bg-blue-50/60 flex items-center gap-2">
+            <input
+              type="email"
+              value={mailTo}
+              onChange={e => setMailTo(e.target.value)}
+              onKeyDown={ev => ev.key === 'Enter' && handleMailPdf()}
+              placeholder="Recipient email address"
+              className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+              autoFocus
+            />
+            <button
+              onClick={handleMailPdf}
+              disabled={isEmailing || !mailTo.trim()}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 transition"
+            >
+              {isEmailing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+              Send
+            </button>
+            <button
+              onClick={() => { setShowMailInput(false); setMailTo(''); }}
+              className="px-3 py-2 text-sm text-slate-500 hover:text-slate-700 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-slate-400">Last updated: {fmtDate(e.updatedAt)}</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportPdf}
+                disabled={isExporting}
+                className="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center gap-1.5 transition"
+              >
+                {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                Export PDF
+              </button>
+              <button
+                onClick={() => setShowMailInput(v => !v)}
+                className="px-3 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-300 rounded-lg hover:bg-blue-50 flex items-center gap-1.5 transition"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Mail PDF
+              </button>
+              <button
+                onClick={closeAll}
+                className="px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
