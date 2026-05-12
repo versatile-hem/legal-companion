@@ -80,3 +80,67 @@ export const apiMethods = {
     return response.data;
   },
 };
+
+// ── Domain API helpers ──────────────────────────────────────
+
+export interface PagedResponse<T> {
+  data: { content: T[]; totalElements: number; totalPages: number; page: number; size: number };
+  success: boolean; message: string;
+}
+
+function qs(params: Record<string, unknown>) {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') p.set(k, String(v));
+  }
+  const s = p.toString();
+  return s ? `?${s}` : '';
+}
+
+export const clientsApi = {
+  list: (p: Record<string, unknown> = {}) => apiMethods.get<PagedResponse<any>>(`/clients${qs(p)}`),
+  get:  (id: string)            => apiMethods.get<{ data: any }>(`/clients/${id}`),
+  create: (body: any)           => apiMethods.post<{ data: any }>('/clients', body),
+  update: (id: string, body: any) => apiMethods.put<{ data: any }>(`/clients/${id}`, body),
+  delete: (id: string)          => apiMethods.delete(`/clients/${id}`),
+  search: (name: string, p: Record<string, unknown> = {}) =>
+    apiMethods.get<PagedResponse<any>>(`/clients/search${qs({ name, ...p })}`),
+};
+
+export const directorsApi = {
+  list: (p: Record<string, unknown> = {}) => apiMethods.get<PagedResponse<any>>(`/directors${qs(p)}`),
+  get:  (id: string)            => apiMethods.get<{ data: any }>(`/directors/${id}`),
+  byEntity: (entityId: string)  => apiMethods.get<{ data: any[] }>(`/directors/by-entity/${entityId}`),
+  create: (body: any)           => apiMethods.post<{ data: any }>('/directors', body),
+  update: (id: string, body: any) => apiMethods.put<{ data: any }>(`/directors/${id}`, body),
+  delete: (id: string)          => apiMethods.delete(`/directors/${id}`),
+};
+
+export const jobsApi = {
+  list: (p: Record<string, unknown> = {}) => apiMethods.get<PagedResponse<any>>(`/jobs${qs(p)}`),
+  get:  (id: string)            => apiMethods.get<{ data: any }>(`/jobs/${id}`),
+  overdue: ()                   => apiMethods.get<{ data: any[] }>('/jobs/overdue'),
+  recent:  (limit = 10)         => apiMethods.get<{ data: any[] }>(`/jobs/recent?limit=${limit}`),
+  create: (body: any)           => apiMethods.post<{ data: any }>('/jobs', body),
+  update: (id: string, body: any) => apiMethods.put<{ data: any }>(`/jobs/${id}`, body),
+  status: (id: string, status: string) => apiMethods.patch<{ data: any }>(`/jobs/${id}/status`, { status }),
+  delete: (id: string)          => apiMethods.delete(`/jobs/${id}`),
+};
+
+export const invoicesApi = {
+  list: (p: Record<string, unknown> = {}) => apiMethods.get<PagedResponse<any>>(`/invoices${qs(p)}`),
+  get:  (id: string)            => apiMethods.get<{ data: any }>(`/invoices/${id}`),
+  summary: ()                   => apiMethods.get<{ data: any }>('/invoices/summary'),
+  create: (body: any)           => apiMethods.post<{ data: any }>('/invoices', body),
+  update: (id: string, body: any) => apiMethods.put<{ data: any }>(`/invoices/${id}`, body),
+  delete: (id: string)          => apiMethods.delete(`/invoices/${id}`),
+};
+
+export const dashboardApi = {
+  stats: () => apiMethods.get<{ data: any }>('/dashboard/stats'),
+};
+
+export const aiApi = {
+  chat: (message: string) => apiMethods.post<{ data: { reply: string } }>('/ai/chat', { message }),
+};
+
