@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import Sidebar from '@/components/dashboard/sidebar';
+import Header from '@/components/dashboard/header';
+import AIChatPanel from '@/components/dashboard/ai-chat-panel';
 
 export default function DashboardLayout({
   children,
@@ -13,6 +15,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const { isAuthenticated, user, hydrate } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     hydrate();
@@ -41,8 +44,12 @@ export default function DashboardLayout({
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {children}
+        <Header onChatToggle={() => setChatOpen(v => !v)} />
+        <main className="flex-1 overflow-y-auto p-8">
+          {children}
+        </main>
       </div>
+      {chatOpen && <AIChatPanel />}
     </div>
   );
 }
