@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   X, Building2, MapPin, Hash, FileText, Users, ClipboardList, Cpu, AlertTriangle,
   Download, Mail, Loader2,
@@ -29,7 +29,6 @@ function Field({ label, value, children }: { label: string; value?: string | nul
 
 export default function EntityViewModal() {
   const { viewEntity, closeAll } = useEntityStore();
-  const printRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isEmailing, setIsEmailing] = useState(false);
   const [showMailInput, setShowMailInput] = useState(false);
@@ -42,22 +41,207 @@ export default function EntityViewModal() {
 
   async function generatePdf() {
     const { default: jsPDF } = await import('jspdf');
-    const { default: html2canvas } = await import('html2canvas');
-    const el = printRef.current!;
-    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    return pdf;
+    const entity = viewEntity!;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentW = pageW - margin * 2;
+    let y = margin;
+
+    const checkPageBreak = (needed = 10) => {
+      if (y + needed > pageH - margin) { doc.addPage(); y = margin; }
+    };
+
+    // ─── Header banner ───
+    doc.setFillColor(37, 99, 235);
+    doc.rect(0, 0, pageW, 32, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(15);
+    doc.setFont('helvetica', 'bold');
+    doc.text(entity.entityName, margin, 13);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    const typeLabel = ENTITY_TYPE_LABELS[entity.entityType as keyof typeof ENTITY_TYPE_LABELS] ?? entity.entityType;
+    doc.text(`${typeLabel}  |  Status: ${entity.status}  |  Compliance: ${entity.complianceStatus}`, margin, 21.5);
+    doc.text(`Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}  |  Suits-In Compliance Platform`, margin, 28.5);
+    y = 38;
+    doc.setTextColor(30, 41, 59);
+
+    const addSectionTitle = (title: string) => {
+      checkPageBreak(12);
+      doc.setFillColor(239, 246, 255);
+      doc.rect(margin, y, contentW, 7, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
+      doc.text(title.toUpperCase(), margin + 2, y + 5);
+      doc.setTextColor(30, 41, 59);
+      y += 10;
+    };
+
+    const addRow = (l1: string, v1: string | null | undefined, l2?: string, v2?: string | null) => {
+      checkPageBreak(7);
+      const half = contentW / 2;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(l1, margin + 2, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(v1 || '—', margin + 42, y);
+      if (l2 !== undefined) {
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text(l2, margin + half + 2, y);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(v2 || '—', margin + half + 42, y);
+      }
+      y += 6;
+    };
+
+    // ─── Basic Info ───
+    addSectionTitle('Basic Information');
+    addRow('Entity Name', entity.entityName, 'Entity Type', typeLabel);
+    addRow('Incorporation Date', fmtDate(entity.incorporationDate), 'Financial Year End', entity.financialYearEnd);
+    addRow('ROC', entity.rocCode, 'Status', entity.status);
+    addRow('Assigned Manager', entity.assignedManagerName, 'Next Due Date', fmtDate(entity.nextDueDate));
+    y += 3;
+
+    // ─── Tax & Registration ───
+    addSectionTitle('Tax & Registration');
+    addRow('CIN / LLPIN', entity.cinLlpin, 'PAN', entity.pan);
+    addRow('TAN', entity.tan, 'GSTIN', entity.gstin);
+    y += 3;
+
+    // ─── Contact & Address ───
+    addSectionTitle('Contact & Address');
+    addRow('Email', entity.email, 'Phone', entity.phone);
+    addRow('Website', entity.website, 'State', entity.state);
+    addRow('City', entity.city, 'Pincode', entity.pincode);
+    if (entity.registeredOffice) {
+      checkPageBreak(10);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Registered Office', margin + 2, y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      const addrLines = doc.splitTextToSize(entity.registeredOffice, contentW - 46) as string[];
+      addrLines.forEach((line) => { checkPageBreak(6); doc.text(line, margin + 42, y); y += 5.5; });
+      y += 1.5;
+    }
+    y += 3;
+
+    // ─── Directors ───
+    if (entity.directors && entity.directors.length > 0) {
+      addSectionTitle(`Directors (${entity.directors.length})`);
+      checkPageBreak(7);
+      doc.setFillColor(219, 234, 254);
+      doc.rect(margin, y, contentW, 6.5, 'F');
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
+      doc.text('Name', margin + 2, y + 4.5);
+      doc.text('Designation', margin + 65, y + 4.5);
+      doc.text('DIN', margin + 115, y + 4.5);
+      doc.text('KYC', margin + 148, y + 4.5);
+      doc.text('Active', margin + 163, y + 4.5);
+      y += 7.5;
+      entity.directors.forEach((d, i) => {
+        checkPageBreak(7);
+        if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y - 1, contentW, 6.5, 'F'); }
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text(d.directorName || '—', margin + 2, y + 3.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(d.designation || '—', margin + 65, y + 3.5);
+        doc.text(d.din || '—', margin + 115, y + 3.5);
+        doc.text(d.kycStatus || '—', margin + 148, y + 3.5);
+        doc.setTextColor(d.isActive ? 22 : 100, d.isActive ? 163 : 116, d.isActive ? 74 : 139);
+        doc.text(d.isActive ? 'Yes' : 'No', margin + 163, y + 3.5);
+        doc.setTextColor(30, 41, 59);
+        y += 6.5;
+      });
+      y += 3;
+    }
+
+    // ─── Compliance ───
+    if (entity.compliances && entity.compliances.length > 0) {
+      addSectionTitle(`Compliance Items (${entity.compliances.length})`);
+      checkPageBreak(7);
+      doc.setFillColor(219, 234, 254);
+      doc.rect(margin, y, contentW, 6.5, 'F');
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
+      doc.text('Compliance', margin + 2, y + 4.5);
+      doc.text('Form', margin + 68, y + 4.5);
+      doc.text('Category', margin + 103, y + 4.5);
+      doc.text('Due Date', margin + 138, y + 4.5);
+      doc.text('Status', margin + 163, y + 4.5);
+      y += 7.5;
+      entity.compliances.forEach((c, i) => {
+        checkPageBreak(7);
+        if (i % 2 === 0) { doc.setFillColor(248, 250, 252); doc.rect(margin, y - 1, contentW, 6.5, 'F'); }
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59);
+        const nameStr = (doc.splitTextToSize(c.complianceName || '—', 63) as string[])[0];
+        doc.text(nameStr, margin + 2, y + 3.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(c.formName || '—', margin + 68, y + 3.5);
+        doc.text(c.category || '—', margin + 103, y + 3.5);
+        doc.text(fmtDate(c.dueDate), margin + 138, y + 3.5);
+        const sc = { COMPLETED: [22, 163, 74], OVERDUE: [220, 38, 38], PENDING: [234, 88, 12], IN_PROGRESS: [37, 99, 235] } as Record<string, number[]>;
+        const col = sc[c.status] ?? [100, 116, 139];
+        doc.setTextColor(col[0], col[1], col[2]);
+        doc.text(c.status, margin + 163, y + 3.5);
+        doc.setTextColor(30, 41, 59);
+        y += 6.5;
+      });
+      y += 3;
+    }
+
+    // ─── AI Insights ───
+    if (entity.aiRiskScore != null || entity.aiSummary) {
+      addSectionTitle('AI Insights');
+      if (entity.aiRiskScore != null) addRow('AI Risk Score', `${entity.aiRiskScore} / 100`);
+      if (entity.aiSummary) {
+        checkPageBreak(10);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text('AI Summary', margin + 2, y);
+        y += 5;
+        doc.setTextColor(30, 41, 59);
+        (doc.splitTextToSize(entity.aiSummary, contentW - 4) as string[]).forEach((line) => {
+          checkPageBreak(5.5); doc.text(line, margin + 2, y); y += 5;
+        });
+      }
+    }
+
+    // ─── Page numbers ───
+    const total = (doc.internal as any).getNumberOfPages() as number;
+    for (let i = 1; i <= total; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`Page ${i} of ${total}`, pageW / 2, pageH - 7, { align: 'center' });
+      doc.text('Confidential — Suits-In Compliance Platform', margin, pageH - 7);
+      doc.text(format(new Date(), 'dd MMM yyyy'), pageW - margin, pageH - 7, { align: 'right' });
+    }
+
+    return doc;
   }
 
   async function handleExportPdf() {
     setIsExporting(true);
     try {
       const pdf = await generatePdf();
-      pdf.save(`${e.name.replace(/\s+/g, '_')}_Entity_Report.pdf`);
+      pdf.save(`${e.entityName.replace(/\s+/g, '_')}_Entity_Report.pdf`);
     } finally {
       setIsExporting(false);
     }
@@ -73,13 +257,13 @@ export default function EntityViewModal() {
       // Download the PDF so the user can attach it manually
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${e.name.replace(/\s+/g, '_')}_Entity_Report.pdf`;
+      a.download = `${e.entityName.replace(/\s+/g, '_')}_Entity_Report.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       // Open mail client with pre-filled subject and body
-      const subject = encodeURIComponent(`Entity Compliance Report – ${e.name}`);
+      const subject = encodeURIComponent(`Entity Compliance Report – ${e.entityName}`);
       const body = encodeURIComponent(
-        `Hi,\n\nPlease find the attached compliance report for ${e.name} (CIN: ${e.cin ?? 'N/A'}).\n\nRegards`
+        `Hi,\n\nPlease find the attached compliance report for ${e.entityName} (CIN: ${e.cinLlpin ?? 'N/A'}).\n\nRegards`
       );
       window.location.href = `mailto:${mailTo}?subject=${subject}&body=${body}`;
       setShowMailInput(false);
@@ -122,7 +306,7 @@ export default function EntityViewModal() {
         </div>
 
         {/* Body */}
-        <div ref={printRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
 
           {/* Basic Info */}
           <Section title="Basic Information" icon={FileText}>
