@@ -27,6 +27,10 @@ export interface AssignmentStore {
   draftAssignment: Partial<Assignment>;
   unsavedChanges: boolean;
 
+  // Task modal state
+  taskModalOpen: boolean;
+  selectedAssignmentForTasks?: Assignment;
+
   // AI state
   aiSuggestions: Array<{
     id: string;
@@ -59,6 +63,10 @@ export interface AssignmentStore {
   deleteAssignment: (id: string) => Promise<void>;
   fetchAISuggestions: (assignment: Partial<Assignment>) => Promise<void>;
   setPage: (page: number) => void;
+
+  // Task actions
+  openTaskModal: (assignment: Assignment) => void;
+  closeTaskModal: () => void;
 }
 
 const defaultFilters: FilterState = {
@@ -77,6 +85,8 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
   modalOpen: false,
   draftAssignment: {},
   unsavedChanges: false,
+  taskModalOpen: false,
+  selectedAssignmentForTasks: undefined,
   aiSuggestions: [],
   aiLoading: false,
   riskScore: 0,
@@ -243,5 +253,20 @@ export const useAssignmentStore = create<AssignmentStore>((set, get) => ({
       console.error('AI suggestions error:', error);
       set({ aiLoading: false });
     }
+  },
+
+  // Task modal actions
+  openTaskModal: (assignment: Assignment) => {
+    set({
+      taskModalOpen: true,
+      selectedAssignmentForTasks: assignment,
+    });
+  },
+
+  closeTaskModal: () => {
+    set({
+      taskModalOpen: false,
+      selectedAssignmentForTasks: undefined,
+    });
   },
 }));

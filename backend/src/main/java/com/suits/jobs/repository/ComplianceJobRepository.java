@@ -17,16 +17,18 @@ public interface ComplianceJobRepository extends JpaRepository<ComplianceJob, UU
     Page<ComplianceJob> findByClientId(UUID clientId, Pageable pageable);
     Page<ComplianceJob> findByStatus(ComplianceJob.JobStatus status, Pageable pageable);
 
+    Page<ComplianceJob> findAll(Pageable pageable);
+
     @Query("SELECT j FROM ComplianceJob j WHERE " +
            "(:entityId IS NULL OR j.entity.id = :entityId) AND " +
            "(:clientId IS NULL OR j.client.id = :clientId) AND " +
-           "(:status IS NULL OR j.status = :status) AND " +
-           "(:jobType IS NULL OR j.jobType = :jobType)")
+           "(:status IS NULL OR CAST(j.status AS string) = :status) AND " +
+           "(:jobType IS NULL OR CAST(j.jobType AS string) = :jobType)")
     Page<ComplianceJob> filter(
             @Param("entityId") UUID entityId,
             @Param("clientId") UUID clientId,
-            @Param("status") ComplianceJob.JobStatus status,
-            @Param("jobType") ComplianceJob.JobType jobType,
+            @Param("status") String status,
+            @Param("jobType") String jobType,
             Pageable pageable);
 
     @Query("SELECT COUNT(j) FROM ComplianceJob j WHERE j.status = :status")

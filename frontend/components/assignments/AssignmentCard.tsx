@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, MoreVertical, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronDown, ChevronUp, MoreVertical, AlertTriangle, Plus } from 'lucide-react';
 import { Assignment } from '@/types/assignment';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +12,7 @@ interface AssignmentCardProps {
   onExpand?: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onAddTask?: (assignmentId: string) => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -84,6 +86,7 @@ export default function AssignmentCard({
   onExpand,
   onEdit,
   onDelete,
+  onAddTask,
 }: AssignmentCardProps) {
   const [showMenus, setShowMenus] = useState(false);
 
@@ -130,14 +133,14 @@ export default function AssignmentCard({
             {/* Title Row */}
             <div className="flex items-center gap-3 mb-2">
               <span className="text-xl">{getTypeIcon(assignment.assignmentType)}</span>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold text-gray-900 truncate">
+              <Link href={`/assignments/${assignment.id}`} className="flex-1 min-w-0 hover:opacity-75 transition">
+                <h3 className="text-base font-semibold text-blue-600 truncate hover:underline">
                   {assignment.name}
                 </h3>
                 <p className="text-sm text-gray-500 truncate">
                   {assignment.client?.name || 'N/A'}
                 </p>
-              </div>
+              </Link>
             </div>
 
             {/* Status & Progress Row */}
@@ -295,6 +298,13 @@ export default function AssignmentCard({
               className="flex-1 px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50 transition-colors"
             >
               Edit
+            </button>
+            <button
+              onClick={() => onAddTask?.(assignment.id)}
+              className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <Plus size={16} />
+              Add Task
             </button>
             <button className="flex-1 px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded hover:bg-gray-50 transition-colors">
               View Details

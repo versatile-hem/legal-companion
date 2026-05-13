@@ -95,6 +95,48 @@ public class TaskService {
         return toDTO(saved);
     }
     
+    @Transactional(readOnly = true)
+    public AssignmentTask getTaskWithDocumentsAndChecklists(UUID taskId) {
+        return taskRepository.findById(taskId)
+            .orElseThrow(() -> new ResourceNotFoundException("Task", "id", taskId));
+    }
+    
+    @Transactional(readOnly = true)
+    public List<String> getAllTaskTemplates() {
+        // Get all distinct task templates from existing tasks
+        List<AssignmentTask> tasks = taskRepository.findAll();
+        return tasks.stream()
+            .map(AssignmentTask::getTaskTemplate)
+            .filter(Objects::nonNull)
+            .distinct()
+            .sorted()
+            .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public List<String> searchTaskTemplates(String query) {
+        // Search task templates by name/category pattern
+        if (query == null || query.trim().isEmpty()) {
+            return getAllTaskTemplates();
+        }
+        
+        String searchPattern = query.toLowerCase();
+        List<AssignmentTask> tasks = taskRepository.findAll();
+        
+        return tasks.stream()
+            .filter(t -> t.getTaskTemplate() != null || t.getTaskCategory() != null)
+            .filter(t -> {
+                String template = t.getTaskTemplate() != null ? t.getTaskTemplate().toLowerCase() : "";
+                String category = t.getTaskCategory() != null ? t.getTaskCategory().toLowerCase() : "";
+                return template.contains(searchPattern) || category.contains(searchPattern);
+            })
+            .map(AssignmentTask::getTaskTemplate)
+            .filter(Objects::nonNull)
+            .distinct()
+            .sorted()
+            .collect(Collectors.toList());
+    }
+    
     private TaskDTO toDTO(AssignmentTask task) {
         TaskDTO dto = new TaskDTO();
         dto.setId(task.getId());

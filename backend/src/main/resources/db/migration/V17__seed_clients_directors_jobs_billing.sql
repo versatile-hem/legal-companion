@@ -93,5 +93,11 @@ END $$;
 
 -- ── Seed client_code on clients ─────────────────────────────
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS client_code VARCHAR(20);
-UPDATE clients SET client_code = 'CLT-' || LPAD(CAST(ROW_NUMBER() OVER(ORDER BY created_at) AS TEXT), 3, '0')
-WHERE client_code IS NULL;
+WITH numbered_clients AS (
+  SELECT id, ROW_NUMBER() OVER(ORDER BY created_at) as rn
+  FROM clients
+  WHERE client_code IS NULL
+)
+UPDATE clients SET client_code = 'CLT-' || LPAD(CAST(numbered_clients.rn AS TEXT), 3, '0')
+FROM numbered_clients
+WHERE clients.id = numbered_clients.id;

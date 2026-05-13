@@ -98,18 +98,19 @@ export interface Entity {
 export interface Director {
   id: string;
   din?: string;
-  name: string;
+  fullName: string;
   email?: string;
   phone?: string;
   pan?: string;
-  aadhaar?: string;
-  kycStatus: KYCStatus;
-  kycVerifiedAt?: Date;
-  dscStatus: 'PENDING' | 'ACTIVE' | 'EXPIRED';
-  dateOfBirth?: Date;
-  address?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  designation?: string;
+  nationality?: string;
+  kycStatus: string;
+  kycDueDate?: string;
+  dscValidUntil?: string;
+  isActive?: boolean;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Job Types
@@ -225,16 +226,37 @@ export type TaskStatus =
 
 export type PriorityLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
+// Financial/Document types for Task support
+export interface TaskDocument {
+  id: string;
+  documentName: string;
+  fileUrl: string;
+  fileSize: number;
+  mimeType: string;
+  uploadedBy?: string; // User email
+  createdAt: Date;
+}
+
+export interface TaskChecklistItem {
+  id: string;
+  name: string;
+  isCompleted: boolean;
+  order: number;
+  completedAt?: Date;
+  completedBy?: string; // User email
+}
+
 export interface Task {
   id: string;
   assignmentId: string;
+  title?: string;
   name: string;
   description?: string;
   assignee?: User;
   assigneeId?: string;
   status: TaskStatus;
   priority: PriorityLevel;
-  estimatedHours: number;
+  estimatedHours?: number;
   actualHours?: number;
   dueDate: Date;
   startedAt?: Date;
@@ -242,6 +264,17 @@ export interface Task {
   dependencies?: string[]; // Array of task IDs
   checklist?: ChecklistItem[];
   attachments?: Document[];
+  
+  // New financial fields
+  estimatedFee?: number;
+  outOfPocketExpense?: number;
+  taskCategory?: string;
+  taskTemplate?: string;
+  
+  // New document/checklist support
+  documents?: TaskDocument[];
+  checklists?: TaskChecklistItem[];
+  
   createdAt: Date;
   updatedAt: Date;
 }

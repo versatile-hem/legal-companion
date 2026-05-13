@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, RefreshCw, Edit, Trash2, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Clock, ShieldAlert } from 'lucide-react';
+import { Users, Plus, RefreshCw, Edit, Trash2, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, Clock, ShieldAlert, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { DataTable, Column } from '@/components/ui/DataTable';
 import { FormDrawer } from '@/components/ui/FormDrawer';
@@ -9,6 +9,7 @@ import { StatusBadge, kycStatusBadge } from '@/components/ui/StatusBadge';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader, KpiCard } from '@/components/ui/PageHeader';
+import { DirectorEntitiesModal } from '@/components/directors/DirectorEntitiesModal';
 import { directorsApi } from '@/lib/api';
 import type { Director, DirectorRequest } from '@/types/director';
 
@@ -23,7 +24,7 @@ function DirectorForm({ initial, onSave, onCancel, loading }: {
   onCancel: () => void;
   loading?: boolean;
 }) {
-  const [form, setForm] = useState<DirectorRequest>({ name: '', ...initial });
+  const [form, setForm] = useState<DirectorRequest>({ fullName: '', ...initial });
   const set = (k: keyof DirectorRequest) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [k]: e.target.value }));
@@ -33,7 +34,7 @@ function DirectorForm({ initial, onSave, onCancel, loading }: {
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <label className="block text-xs font-medium text-slate-600 mb-1">Full Name *</label>
-          <input value={form.name} onChange={set('name')} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Narayan Murthy" required />
+          <input value={form.fullName} onChange={set('fullName')} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Narayan Murthy" required />
         </div>
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1">DIN</label>
@@ -73,13 +74,13 @@ function DirectorForm({ initial, onSave, onCancel, loading }: {
           <input type="date" value={form.dscValidUntil ?? ''} onChange={set('dscValidUntil')} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Nationality</label>
-          <input value={form.nationality ?? ''} onChange={set('nationality')} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none" placeholder="Indian" />
+          <label className="block text-xs font-medium text-slate-600 mb-1">Designation</label>
+          <input value={form.designation ?? ''} onChange={set('designation')} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none" placeholder="Managing Director" />
         </div>
       </div>
       <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
         <button onClick={onCancel} className="px-4 py-2 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition">Cancel</button>
-        <button onClick={() => onSave(form)} disabled={loading || !form.name} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition">
+        <button onClick={() => onSave(form)} disabled={loading || !form.fullName} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 transition">
           {loading ? 'Saving…' : 'Save Director'}
         </button>
       </div>
@@ -97,6 +98,8 @@ export default function DirectorsPage() {
   const [saving, setSaving] = useState(false);
   const [editDir, setEditDir] = useState<Director | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [entitiesModalOpen, setEntitiesModalOpen] = useState(false);
+  const [selectedDirector, setSelectedDirector] = useState<Director | null>(null);
 
   const fetchDirectors = useCallback(async () => {
     setLoading(true);
@@ -138,10 +141,10 @@ export default function DirectorsPage() {
       render: d => (
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            {d.name.split(' ').map(n => n[0]).slice(0,2).join('')}
+            {d.fullName?.split(' ').map(n => n[0]).slice(0,2).join('') || 'D'}
           </div>
           <div>
-            <p className="font-medium text-slate-900 text-sm">{d.name}</p>
+            <p className="font-medium text-slate-900 text-sm">{d.fullName}</p>
             <p className="text-xs text-slate-400">{d.designation || 'Director'}</p>
           </div>
         </div>
@@ -159,8 +162,15 @@ export default function DirectorsPage() {
       key: '_actions' as any, header: '',
       render: d => (
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-          <button onClick={e => { e.stopPropagation(); setEditDir(d); }} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"><Edit className="w-3.5 h-3.5" /></button>
-          <button onClick={e => { e.stopPropagation(); handleDelete(d.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"><Trash2 className="w-3.5 h-3.5" /></button>
+          <button onClick={e => { e.stopPropagation(); setSelectedDirector(d); setEntitiesModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="View companies">
+            <Building2 className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={e => { e.stopPropagation(); setEditDir(d); }} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition">
+            <Edit className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={e => { e.stopPropagation(); handleDelete(d.id); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       ),
     },
@@ -225,7 +235,7 @@ export default function DirectorsPage() {
         <DirectorForm onSave={handleCreate} onCancel={() => setCreateOpen(false)} loading={saving} />
       </FormDrawer>
 
-      <FormDrawer open={!!editDir} onClose={() => setEditDir(null)} title={`Edit — ${editDir?.name}`} subtitle="Update director information">
+      <FormDrawer open={!!editDir} onClose={() => setEditDir(null)} title={`Edit — ${editDir?.fullName}`} subtitle="Update director information">
         {editDir && (
           <DirectorForm
             initial={editDir as unknown as DirectorRequest}
@@ -235,6 +245,18 @@ export default function DirectorsPage() {
           />
         )}
       </FormDrawer>
+
+      {selectedDirector && (
+        <DirectorEntitiesModal
+          isOpen={entitiesModalOpen}
+          onClose={() => {
+            setEntitiesModalOpen(false);
+            setSelectedDirector(null);
+          }}
+          directorId={selectedDirector.id}
+          directorName={selectedDirector.fullName}
+        />
+      )}
     </div>
   );
 }

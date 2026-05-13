@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAssignmentStore } from '@/store/assignmentStore';
 import AssignmentHeader from '@/components/assignments/AssignmentHeader';
 import AssignmentCard from '@/components/assignments/AssignmentCard';
 import { Loader2 } from 'lucide-react';
 
 export default function AssignmentsPage() {
+  const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const {
@@ -47,6 +49,10 @@ export default function AssignmentsPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [openCreateModal]);
 
+  const handleViewDetails = (id: string) => {
+    router.push(`/assignments/${id}`);
+  };
+
   const handleEdit = (id: string) => {
     // TODO: Implement edit modal
     console.log('Edit assignment:', id);
@@ -56,6 +62,11 @@ export default function AssignmentsPage() {
     if (confirm('Are you sure you want to delete this assignment?')) {
       await deleteAssignment(id);
     }
+  };
+
+  const handleAddTask = (assignmentId: string) => {
+    // Navigate to detail page with task modal open
+    router.push(`/assignments/${assignmentId}#tasks`);
   };
 
   return (
@@ -136,6 +147,7 @@ export default function AssignmentsPage() {
                 onExpand={(id) => setExpandedId(expandedId === id ? null : id)}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onAddTask={handleAddTask}
               />
             ))}
 

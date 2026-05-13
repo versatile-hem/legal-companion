@@ -47,7 +47,7 @@ export function DataTable<T extends object>({
   const sorted = useMemo(() => {
     if (!sortKey) return data;
     return [...data].sort((a, b) => {
-      const av = a[sortKey]; const bv = b[sortKey];
+      const av = (a as any)[sortKey]; const bv = (b as any)[sortKey];
       if (av == null) return 1;
       if (bv == null) return -1;
       const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
@@ -128,7 +128,7 @@ export function DataTable<T extends object>({
                 <td key={String(c.key)} className="px-4 py-3 text-slate-700 whitespace-nowrap">
                   {c.render
                     ? c.render(row, idx)
-                    : String(row[String(c.key)] ?? '—')}
+                    : String((row as any)[String(c.key)] ?? '—')}
                 </td>
               ))}
             </tr>

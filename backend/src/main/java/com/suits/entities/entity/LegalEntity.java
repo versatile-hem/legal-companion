@@ -2,6 +2,8 @@ package com.suits.entities.entity;
 
 import com.suits.auth.entity.User;
 import com.suits.clients.entity.Client;
+import com.suits.directors.entity.Director;
+import com.suits.directors.entity.DirectorEntityMapping;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -101,6 +103,9 @@ public class LegalEntity {
 
     @OneToMany(mappedBy = "entity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<EntityDirector> directors = new ArrayList<>();
+
+    @OneToMany(mappedBy = "entity", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private List<DirectorEntityMapping> directorMappings = new ArrayList<>();
 
     @OneToMany(mappedBy = "entity", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<EntityCompliance> compliances = new ArrayList<>();
@@ -217,6 +222,9 @@ public class LegalEntity {
 
     public List<EntityDirector> getDirectors() { return directors; }
     public void setDirectors(List<EntityDirector> directors) { this.directors = directors; }
+
+    public List<DirectorEntityMapping> getDirectorMappings() { return directorMappings; }
+    public void setDirectorMappings(List<DirectorEntityMapping> directorMappings) { this.directorMappings = directorMappings; }
 
     public List<EntityCompliance> getCompliances() { return compliances; }
     public void setCompliances(List<EntityCompliance> compliances) { this.compliances = compliances; }

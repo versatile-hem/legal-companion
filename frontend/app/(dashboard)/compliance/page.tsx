@@ -76,10 +76,6 @@ function JobForm({ initial, onSave, onCancel, loading }: {
           <label className="block text-xs font-medium text-slate-600 mb-1">Due Date</label>
           <input type="date" value={form.dueDate ?? ''} onChange={set('dueDate')} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Start Date</label>
-          <input type="date" value={form.startDate ?? ''} onChange={set('startDate')} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none" />
-        </div>
         <div className="col-span-2">
           <label className="block text-xs font-medium text-slate-600 mb-1">Remarks</label>
           <textarea value={form.remarks ?? ''} onChange={set('remarks')} rows={2} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none resize-none" />

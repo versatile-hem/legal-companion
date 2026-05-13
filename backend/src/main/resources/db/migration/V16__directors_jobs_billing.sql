@@ -2,7 +2,14 @@
 -- V16: Directors (standalone), ComplianceJobs, Invoices
 -- ============================================================
 
+-- ── Drop old tables (will be recreated with new schema) ────
+DROP TABLE IF EXISTS invoices CASCADE;
+DROP TABLE IF EXISTS compliance_jobs CASCADE;
+DROP TABLE IF EXISTS directors CASCADE;
+
 -- ── Directors ──────────────────────────────────────────────
+-- Drop old directors table (will be recreated with new schema)
+
 CREATE TYPE kyc_status_enum AS ENUM ('PENDING','COMPLETED','OVERDUE','EXPIRED');
 
 CREATE TABLE directors (

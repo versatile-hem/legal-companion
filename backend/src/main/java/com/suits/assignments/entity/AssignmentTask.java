@@ -5,8 +5,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import com.suits.auth.entity.User;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -50,6 +53,24 @@ public class AssignmentTask {
 
     @Column(name = "estimated_hours")
     private Integer estimatedHours;
+
+    @Column(name = "estimated_fee", precision = 10, scale = 2)
+    private BigDecimal estimatedFee;
+
+    @Column(name = "out_of_pocket_expense", precision = 10, scale = 2)
+    private BigDecimal outOfPocketExpense;
+
+    @Column(name = "task_category", length = 100)
+    private String taskCategory;
+
+    @Column(name = "task_template", length = 255)
+    private String taskTemplate;
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private List<TaskDocument> documents = new ArrayList<>();
+
+    @OneToMany(mappedBy = "task", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private List<TaskChecklist> checklists = new ArrayList<>();
 
     @Column(name = "order_in_assignment")
     private Integer order;
@@ -97,6 +118,24 @@ public class AssignmentTask {
 
     public Integer getEstimatedHours() { return estimatedHours; }
     public void setEstimatedHours(Integer estimatedHours) { this.estimatedHours = estimatedHours; }
+
+    public BigDecimal getEstimatedFee() { return estimatedFee; }
+    public void setEstimatedFee(BigDecimal estimatedFee) { this.estimatedFee = estimatedFee; }
+
+    public BigDecimal getOutOfPocketExpense() { return outOfPocketExpense; }
+    public void setOutOfPocketExpense(BigDecimal outOfPocketExpense) { this.outOfPocketExpense = outOfPocketExpense; }
+
+    public String getTaskCategory() { return taskCategory; }
+    public void setTaskCategory(String taskCategory) { this.taskCategory = taskCategory; }
+
+    public String getTaskTemplate() { return taskTemplate; }
+    public void setTaskTemplate(String taskTemplate) { this.taskTemplate = taskTemplate; }
+
+    public List<TaskDocument> getDocuments() { return documents; }
+    public void setDocuments(List<TaskDocument> documents) { this.documents = documents; }
+
+    public List<TaskChecklist> getChecklists() { return checklists; }
+    public void setChecklists(List<TaskChecklist> checklists) { this.checklists = checklists; }
 
     public Integer getOrder() { return order; }
     public void setOrder(Integer order) { this.order = order; }

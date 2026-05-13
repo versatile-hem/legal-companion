@@ -4,6 +4,7 @@ import com.suits.common.dto.ApiResponse;
 import com.suits.common.dto.PageResponse;
 import com.suits.directors.dto.DirectorRequest;
 import com.suits.directors.dto.DirectorResponse;
+import com.suits.directors.dto.DirectorEntityMappingResponse;
 import com.suits.directors.service.DirectorService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -64,5 +65,20 @@ public class DirectorController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         service.delete(id);
         return ResponseEntity.ok(ApiResponse.ok(null, "Director deactivated"));
+    }
+
+    @GetMapping("/{id}/entities")
+    public ResponseEntity<ApiResponse<List<DirectorEntityMappingResponse>>> getDirectorEntities(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getDirectorEntities(id), "OK"));
+    }
+
+    @GetMapping("/{id}/entities/active")
+    public ResponseEntity<ApiResponse<List<DirectorEntityMappingResponse>>> getDirectorActiveEntities(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getDirectorActiveEntities(id), "OK"));
+    }
+
+    @GetMapping("/{id}/entities/count")
+    public ResponseEntity<ApiResponse<Long>> getDirectorEntitiesCount(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getActiveEntitiesCountForDirector(id), "OK"));
     }
 }

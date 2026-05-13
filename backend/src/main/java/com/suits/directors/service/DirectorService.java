@@ -4,8 +4,10 @@ import com.suits.common.dto.PageResponse;
 import com.suits.common.exception.ResourceNotFoundException;
 import com.suits.directors.dto.DirectorRequest;
 import com.suits.directors.dto.DirectorResponse;
+import com.suits.directors.dto.DirectorEntityMappingResponse;
 import com.suits.directors.entity.Director;
 import com.suits.directors.repository.DirectorRepository;
+import com.suits.directors.repository.DirectorEntityMappingRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,9 +22,11 @@ import java.util.stream.Collectors;
 public class DirectorService {
 
     private final DirectorRepository repo;
+    private final DirectorEntityMappingRepository mappingRepo;
 
-    public DirectorService(DirectorRepository repo) {
+    public DirectorService(DirectorRepository repo, DirectorEntityMappingRepository mappingRepo) {
         this.repo = repo;
+        this.mappingRepo = mappingRepo;
     }
 
     @Transactional(readOnly = true)
@@ -66,6 +70,29 @@ public class DirectorService {
         Director d = find(id);
         d.setActive(false);
         repo.save(d);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DirectorEntityMappingResponse> getDirectorEntities(UUID directorId) {
+        find(directorId); // Verify director exists
+        return mappingRepo.findByDirectorId(directorId).stream()
+                .map(DirectorEntityMappingResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<DirectorEntityMappingResponse> getDirectorActiveEntities(UUID directorId) {
+        find(directorId); // Verify director exists
+        return mappingRepo.findByDirectorId(directorId).stream()
+                .filter(dem -> dem.getCessationDate() == null)
+                .map(DirectorEntityMappingResponse::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public long getActiveEntitiesCountForDirector(UUID directorId) {
+        find(directorId); // Verify director exists
+        return mappingRepo.countActiveEntitiesForDirector(directorId);
     }
 
     private Director find(UUID id) {

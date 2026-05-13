@@ -41,9 +41,12 @@ public class ComplianceJobService {
     @Transactional(readOnly = true)
     public PageResponse<ComplianceJobResponse> filter(UUID entityId, UUID clientId,
                                                        String status, String jobType, Pageable pageable) {
-        ComplianceJob.JobStatus st = parse(status, ComplianceJob.JobStatus.class);
-        ComplianceJob.JobType jt = parse(jobType, ComplianceJob.JobType.class);
-        var page = repo.filter(entityId, clientId, st, jt, pageable);
+        // If all filters are null, just return all
+        if (entityId == null && clientId == null && status == null && jobType == null) {
+            var page = repo.findAll(pageable);
+            return PageResponse.fromPage(page.map(ComplianceJobResponse::fromEntity));
+        }
+        var page = repo.filter(entityId, clientId, status, jobType, pageable);
         return PageResponse.fromPage(page.map(ComplianceJobResponse::fromEntity));
     }
 
